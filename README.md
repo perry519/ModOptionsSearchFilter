@@ -1,6 +1,6 @@
 # Mod Options Search Filter
 
-Adds a search/filter field to the top of the BLT mod options list.
+Adds a search/filter field to the top of the BLT mod options list and Mod Overrides list.
 
 Type in the `Filter` input to narrow the visible mods by mod name or description.
 
