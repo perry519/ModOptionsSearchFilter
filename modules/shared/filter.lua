@@ -2,7 +2,13 @@ _G.ModOptionsSearchFilter = _G.ModOptionsSearchFilter or {}
 
 local ModOptionsSearchFilter = _G.ModOptionsSearchFilter
 
-local function item_parameters(item)
+local function append_text(parts, value)
+	if value ~= nil then
+		table.insert(parts, tostring(value))
+	end
+end
+
+function ModOptionsSearchFilter:ItemParameters(item)
 	if item and item.parameters then
 		local ok, parameters = pcall(function()
 			return item:parameters()
@@ -14,31 +20,6 @@ local function item_parameters(item)
 	end
 
 	return item and item._parameters or {}
-end
-
-local function append_text(parts, value)
-	if value ~= nil then
-		table.insert(parts, tostring(value))
-	end
-end
-
-function ModOptionsSearchFilter:GetNodeName(node_gui)
-	local library = self:GetInlineInputLibrary()
-
-	if library and library.GetNodeName then
-		local ok, node_name = pcall(function()
-			return library:GetNodeName(node_gui)
-		end)
-
-		if ok and node_name then
-			return node_name
-		end
-	end
-
-	local node = node_gui and node_gui.node or node_gui
-	local parameters = node and node.parameters and node:parameters()
-
-	return parameters and parameters.name or node_gui and node_gui.name
 end
 
 function ModOptionsSearchFilter:LocalizedText(value, localized)
@@ -66,7 +47,7 @@ function ModOptionsSearchFilter:LocalizedText(value, localized)
 end
 
 function ModOptionsSearchFilter:ItemSearchText(item)
-	local parameters = item_parameters(item)
+	local parameters = self:ItemParameters(item)
 	local parts = {}
 
 	append_text(parts, self:LocalizedText(parameters.text_id, parameters.localize))
@@ -80,24 +61,42 @@ function ModOptionsSearchFilter:NormalizeSearch(value)
 end
 
 function ModOptionsSearchFilter:IsAlwaysVisibleItem(item)
-	local parameters = item_parameters(item)
+	local parameters = self:ItemParameters(item)
 
-	return parameters.name == self.INPUT_ID or parameters.back == true or parameters.name == "back"
+	if parameters.back == true or parameters.name == "back" then
+		return true
+	end
+
+	for _, key in ipairs(self.SEARCH_CONTEXT_ORDER or {}) do
+		local context = self.SEARCH_CONTEXTS and self.SEARCH_CONTEXTS[key]
+
+		if context and parameters.name == context.input_id then
+			return true
+		end
+	end
+
+	return false
 end
 
-function ModOptionsSearchFilter:BuildSearchNodeItem()
+function ModOptionsSearchFilter:BuildSearchNodeItem(context)
+	context = self:SearchContext(context)
+
+	if not context then
+		return nil
+	end
+
 	local item = {
 		_meta = "item",
-		name = self.INPUT_ID,
+		name = context.input_id,
 		localize = false,
 		localize_help = false,
 		priority = self.SEARCH_PRIORITY
 	}
 
-	if self.SearchInput then
+	if self[context.handle_field] then
 		item.text_id = " "
-		item.help_id = "Filter mod options."
-		item.callback = self.CALLBACKS.open_search
+		item.help_id = context.desc
+		item.callback = context.callback_id
 	else
 		item.text_id = self.MISSING_INLINE_INPUT_TEXT
 		item.help_id = self.MISSING_INLINE_INPUT_HELP
@@ -108,9 +107,15 @@ function ModOptionsSearchFilter:BuildSearchNodeItem()
 	return item
 end
 
-function ModOptionsSearchFilter:RawNodeHasSearchItem(options_node)
+function ModOptionsSearchFilter:RawNodeHasSearchItem(options_node, context)
+	context = self:SearchContext(context)
+
+	if not context then
+		return false
+	end
+
 	for _, item in ipairs(options_node or {}) do
-		if type(item) == "table" and item.name == self.INPUT_ID then
+		if type(item) == "table" and item.name == context.input_id then
 			return true
 		end
 	end
@@ -118,30 +123,34 @@ function ModOptionsSearchFilter:RawNodeHasSearchItem(options_node)
 	return false
 end
 
-function ModOptionsSearchFilter:AddSearchNodeItem(options_node)
-	if type(options_node) ~= "table" then
+function ModOptionsSearchFilter:AddSearchNodeItem(options_node, context)
+	context = self:SearchContext(context)
+
+	if type(options_node) ~= "table" or not context then
 		return false
 	end
 
-	if self:RawNodeHasSearchItem(options_node) then
+	if self:RawNodeHasSearchItem(options_node, context) then
 		return false
 	end
 
-	table.insert(options_node, self:BuildSearchNodeItem())
+	table.insert(options_node, self:BuildSearchNodeItem(context))
 
 	return true
 end
 
-function ModOptionsSearchFilter:ItemMatchesSearch(item)
-	if self:IsAlwaysVisibleItem(item) then
+function ModOptionsSearchFilter:ItemMatchesSearch(item, context)
+	context = self:SearchContext(context)
+
+	if not context or self:IsAlwaysVisibleItem(item) then
 		return true
 	end
 
-	if not self.SearchInput then
+	if not self[context.handle_field] then
 		return true
 	end
 
-	local query = self:NormalizeSearch(self:GetSearchText())
+	local query = self:NormalizeSearch(self:GetSearchText(context))
 
 	if query == "" then
 		return true
@@ -150,16 +159,24 @@ function ModOptionsSearchFilter:ItemMatchesSearch(item)
 	return string.find(self:NormalizeSearch(self:ItemSearchText(item)), query, 1, true) ~= nil
 end
 
-function ModOptionsSearchFilter:PatchItemFilter(item)
-	if not item or item._mod_options_search_filter_patched then
+function ModOptionsSearchFilter:PatchItemFilter(item, context)
+	context = self:SearchContext(context)
+
+	if not context then
 		return false
 	end
 
-	item._mod_options_search_filter_patched = true
+	local patch_flag = "_mod_options_search_filter_patched_" .. context.key
+
+	if not item or item[patch_flag] then
+		return false
+	end
+
+	item[patch_flag] = true
 	item._visible_callback_list = item._visible_callback_list or {}
 
 	table.insert(item._visible_callback_list, function(menu_item)
-		return _G.ModOptionsSearchFilter:ItemMatchesSearch(menu_item or item)
+		return _G.ModOptionsSearchFilter:ItemMatchesSearch(menu_item or item, context)
 	end)
 
 	return true
@@ -181,7 +198,7 @@ end
 
 function ModOptionsSearchFilter:FindNodeItem(node, item_name)
 	for _, item in pairs(self:GetNodeItems(node)) do
-		local parameters = item_parameters(item)
+		local parameters = self:ItemParameters(item)
 
 		if parameters.name == item_name then
 			return item
@@ -191,8 +208,10 @@ function ModOptionsSearchFilter:FindNodeItem(node, item_name)
 	return nil
 end
 
-function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node)
-	if not node or self:FindNodeItem(node, self.INPUT_ID) then
+function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node, context)
+	context = self:SearchContext(context)
+
+	if not context or not node or self:FindNodeItem(node, context.input_id) then
 		return false
 	end
 
@@ -200,7 +219,7 @@ function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node)
 		return false
 	end
 
-	local item = node:create_item(self:BuildSearchNodeItem())
+	local item = node:create_item({}, self:BuildSearchNodeItem(context))
 
 	if not item then
 		return false
@@ -212,17 +231,20 @@ function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node)
 end
 
 function ModOptionsSearchFilter:PrepareNode(node_gui, node)
-	if self:GetNodeName(node_gui) ~= self.MENU_ID then
+	local context = self:NodeSearchContext(node_gui, node)
+
+	if not context then
 		return false
 	end
 
-	local has_search_input = self:SetupInlineInput() ~= nil
-	self:EnsureRuntimeSearchItem(node or node_gui.node)
+	local target_node = node or node_gui and node_gui.node
+	local has_search_input = self:SetupInlineInput(context) ~= nil
+	self:EnsureRuntimeSearchItem(target_node, context)
 
 	if has_search_input then
-		for _, item in pairs(self:GetNodeItems(node or node_gui.node)) do
+		for _, item in pairs(self:GetNodeItems(target_node)) do
 			if not self:IsAlwaysVisibleItem(item) then
-				self:PatchItemFilter(item)
+				self:PatchItemFilter(item, context)
 			end
 		end
 	end

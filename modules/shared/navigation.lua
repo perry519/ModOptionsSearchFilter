@@ -1,12 +1,12 @@
 _G.ModOptionsSearchFilter = _G.ModOptionsSearchFilter or {}
 
 local ModOptionsSearchFilter = _G.ModOptionsSearchFilter
-local MENU_INPUT_PATCH_VERSION = 3
+local MENU_INPUT_PATCH_VERSION = 4
 
 local function item_name(item)
-	local parameters = item and item.parameters and item:parameters() or item and item._parameters
+	local parameters = ModOptionsSearchFilter:ItemParameters(item)
 
-	return parameters and parameters.name
+	return parameters.name
 end
 
 local function row_name(row_item)
@@ -14,9 +14,7 @@ local function row_name(row_item)
 end
 
 local function row_parameters(row_item)
-	local item = row_item and row_item.item
-
-	return item and item.parameters and item:parameters() or item and item._parameters or {}
+	return ModOptionsSearchFilter:ItemParameters(row_item and row_item.item)
 end
 
 local function is_back_row(row_item)
@@ -51,47 +49,28 @@ end
 function ModOptionsSearchFilter:AutofocusNode(node_gui)
 	self:InstallMenuInputPatch()
 
+	local context = self:NodeSearchContext(node_gui, node_gui and node_gui.node)
+
+	if not context then
+		return false
+	end
+
 	local library = self:GetInlineInputLibrary()
 
 	if not library or not library.GetNodeName then
 		return false
 	end
 
-	if library:GetNodeName(node_gui) ~= self.MENU_ID then
+	node_gui._mod_options_search_autofocused = node_gui._mod_options_search_autofocused or {}
+	if node_gui._mod_options_search_autofocused[context.key] then
 		return false
 	end
 
-	if node_gui._mod_options_search_autofocused then
-		return false
-	end
+	node_gui._mod_options_search_autofocused[context.key] = true
 
-	node_gui._mod_options_search_autofocused = true
-
-	local focused = self:FocusSearch(node_gui)
+	local focused = self:FocusSearch(node_gui, context)
 
 	return focused
-end
-
-function ModOptionsSearchFilter:InstallMenuNodeGuiPatch()
-	if not MenuNodeGui or MenuNodeGui._mod_options_search_setup_item_rows_patched then
-		return false
-	end
-
-	MenuNodeGui._mod_options_search_setup_item_rows_patched = true
-
-	local original_setup_item_rows = MenuNodeGui._setup_item_rows
-
-	function MenuNodeGui:_setup_item_rows(node, ...)
-		ModOptionsSearchFilter:PrepareNode(self, node)
-
-		local result = original_setup_item_rows and original_setup_item_rows(self, node, ...)
-
-		ModOptionsSearchFilter:AutofocusNode(self)
-
-		return result
-	end
-
-	return true
 end
 
 function ModOptionsSearchFilter:IsSearchInputFocused(node_gui)
@@ -102,18 +81,30 @@ function ModOptionsSearchFilter:IsSearchInputFocused(node_gui)
 			return library:FocusedInputBox(node_gui)
 		end)
 
-		if ok and config and config.id == self.INPUT_ID then
-			return true
+		if ok and config then
+			for _, key in ipairs(self.SEARCH_CONTEXT_ORDER or {}) do
+				local context = self.SEARCH_CONTEXTS and self.SEARCH_CONTEXTS[key]
+
+				if context and config.id == context.input_id then
+					return true
+				end
+			end
 		end
 	end
 
-	local handle = self:GetSearchInputHandle()
-	if handle and handle.input_focus then
-		local ok, focused = pcall(function()
-			return handle:input_focus(node_gui)
-		end)
+	for _, key in ipairs(self.SEARCH_CONTEXT_ORDER or {}) do
+		local context = self.SEARCH_CONTEXTS and self.SEARCH_CONTEXTS[key]
+		local handle = context and self[context.handle_field]
 
-		return ok and focused == true
+		if handle and handle.input_focus then
+			local ok, focused = pcall(function()
+				return handle:input_focus(node_gui)
+			end)
+
+			if ok and focused == true then
+				return true
+			end
+		end
 	end
 
 	return false
@@ -170,9 +161,11 @@ function ModOptionsSearchFilter:NavigationRows(node_gui)
 	return rows
 end
 
-function ModOptionsSearchFilter:SearchRowIndex(rows)
+function ModOptionsSearchFilter:SearchRowIndex(rows, context)
+	context = self:SearchContext(context)
+
 	for index, row_item in ipairs(rows or {}) do
-		if row_name(row_item) == self.INPUT_ID then
+		if context and row_name(row_item) == context.input_id then
 			return index
 		end
 	end
@@ -205,9 +198,9 @@ function ModOptionsSearchFilter:ItemRowIndex(rows, target_item)
 	return nil
 end
 
-function ModOptionsSearchFilter:CurrentNavigationIndex(menu_input, node_gui, rows)
+function ModOptionsSearchFilter:CurrentNavigationIndex(menu_input, node_gui, rows, context)
 	if self:IsSearchInputFocused(node_gui) or node_gui._mod_options_search_input_navigation_active == true then
-		return self:SearchRowIndex(rows)
+		return self:SearchRowIndex(rows, context)
 	end
 
 	local highlighted_index = self:HighlightedRowIndex(rows)
@@ -233,9 +226,10 @@ function ModOptionsSearchFilter:FadeHighlightedRows(node_gui, target_name)
 	end
 end
 
-function ModOptionsSearchFilter:SelectNavigationItem(menu_input, node_gui, item)
+function ModOptionsSearchFilter:SelectNavigationItem(menu_input, node_gui, item, context)
+	context = self:SearchContext(context)
 	local target_name = item_name(item)
-	if not target_name then
+	if not context or not target_name then
 		return false
 	end
 
@@ -248,10 +242,10 @@ function ModOptionsSearchFilter:SelectNavigationItem(menu_input, node_gui, item)
 		node_gui.node:select_item(target_name)
 	end
 
-	if target_name == self.INPUT_ID then
-		self:FocusSearch(node_gui)
+	if target_name == context.input_id then
+		self:FocusSearch(node_gui, context)
 	else
-		self:BlurSearch(node_gui)
+		self:BlurSearch(node_gui, context)
 		node_gui._mod_options_search_input_navigation_active = false
 	end
 
@@ -262,7 +256,9 @@ function ModOptionsSearchFilter:MoveSelection(menu_input, direction)
 	local library = self:GetInlineInputLibrary()
 	local node_gui = library and library.ActiveNodeGui and library:ActiveNodeGui()
 
-	if not node_gui or self:GetNodeName(node_gui) ~= self.MENU_ID then
+	local context = node_gui and self:NodeSearchContext(node_gui, node_gui.node)
+
+	if not node_gui or not context then
 		return false
 	end
 
@@ -271,14 +267,14 @@ function ModOptionsSearchFilter:MoveSelection(menu_input, direction)
 		return false
 	end
 
-	local current_index = self:CurrentNavigationIndex(menu_input, node_gui, rows)
+	local current_index = self:CurrentNavigationIndex(menu_input, node_gui, rows, context)
 	if not current_index then
 		return false
 	end
 
 	local target_index = ((current_index + direction - 1) % #rows) + 1
 
-	return self:SelectNavigationItem(menu_input, node_gui, rows[target_index].item)
+	return self:SelectNavigationItem(menu_input, node_gui, rows[target_index].item, context)
 end
 
 function ModOptionsSearchFilter:MoveDownFromSearch(menu_input)

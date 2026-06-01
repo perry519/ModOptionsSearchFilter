@@ -10,12 +10,17 @@ local function load_module(path)
 end
 
 local modules = {
-	"modules/constants.lua",
-	"modules/input.lua",
-	"modules/filter.lua",
-	"modules/menu.lua",
-	"modules/hooks.lua",
-	"modules/core.lua",
+	"modules/shared/constants.lua",
+	"modules/shared/context.lua",
+	"modules/blt/context.lua",
+	"modules/mo/context.lua",
+	"modules/shared/input.lua",
+	"modules/shared/filter.lua",
+	"modules/shared/renderer.lua",
+	"modules/shared/navigation.lua",
+	"modules/blt/menu.lua",
+	"modules/mo/menu.lua",
+	"modules/shared/core.lua",
 }
 
 for _, module_path in ipairs(modules) do
