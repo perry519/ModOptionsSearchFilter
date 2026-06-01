@@ -28,6 +28,7 @@ function ModOptionsSearchFilter:RegisterBltMenuHooks()
 	Hooks:Add("BLTOnBuildOptions", "ModOptionsSearchFilter_BuildOptions", function(options_node)
 		ModOptionsSearchFilter:RegisterBltMenuCallbacks()
 		ModOptionsSearchFilter:SetupInlineInput("mod_options")
+		ModOptionsSearchFilter:EnsureBltOptionsRawModifier(options_node)
 		ModOptionsSearchFilter:AddSearchNodeItem(options_node, "mod_options")
 	end)
 
@@ -39,6 +40,15 @@ function ModOptionsSearchFilter:RegisterBltMenuHooks()
 	Hooks:Add("MenuManagerPopulateCustomMenus", "ModOptionsSearchFilter_PopulateMenu", function()
 		ModOptionsSearchFilter:SetupInlineInput("mod_options")
 		ModOptionsSearchFilter:RegisterBltMenuCallbacks()
+	end)
+
+	Hooks:Add("MenuManagerBuildCustomMenus", "ModOptionsSearchFilter_BuildMenu", function(_, nodes)
+		local node = nodes and nodes[ModOptionsSearchFilter.MENU_ID]
+
+		ModOptionsSearchFilter:SetupInlineInput("mod_options")
+		ModOptionsSearchFilter:RegisterBltMenuCallbacks()
+		ModOptionsSearchFilter:EnsureBltOptionsRuntimeModifier(node)
+		ModOptionsSearchFilter:PlaceBltSearchItemFirst(node)
 	end)
 
 	return true

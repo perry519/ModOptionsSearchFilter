@@ -2,7 +2,7 @@
 	"name": "Mod Options Search Filter",
 	"description": "Adds search filter fields to the BLT mod options and installed mod_overrides lists.",
 	"author": "Perry",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"blt_version": 2,
 	"priority": 1,
 	"updates": [

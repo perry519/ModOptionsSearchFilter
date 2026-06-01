@@ -107,20 +107,20 @@ function ModOptionsSearchFilter:BuildSearchNodeItem(context)
 	return item
 end
 
-function ModOptionsSearchFilter:RawNodeHasSearchItem(options_node, context)
+function ModOptionsSearchFilter:FindRawSearchItem(options_node, context)
 	context = self:SearchContext(context)
 
 	if not context then
-		return false
+		return nil
 	end
 
 	for _, item in ipairs(options_node or {}) do
-		if type(item) == "table" and item.name == context.input_id then
-			return true
+		if type(item) == "table" and self:ItemName(item) == context.input_id then
+			return item
 		end
 	end
 
-	return false
+	return nil
 end
 
 function ModOptionsSearchFilter:AddSearchNodeItem(options_node, context)
@@ -130,11 +130,18 @@ function ModOptionsSearchFilter:AddSearchNodeItem(options_node, context)
 		return false
 	end
 
-	if self:RawNodeHasSearchItem(options_node, context) then
+	local search_item = self:FindRawSearchItem(options_node, context)
+
+	self:SetSearchDefaultItem(options_node, context)
+
+	if search_item then
+		self:SetSearchItemPriority(search_item)
+		self:PlaceSearchItemFirst(options_node, context)
 		return false
 	end
 
 	table.insert(options_node, self:BuildSearchNodeItem(context))
+	self:PlaceSearchItemFirst(options_node, context)
 
 	return true
 end
@@ -211,8 +218,18 @@ end
 function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node, context)
 	context = self:SearchContext(context)
 
-	if not context or not node or self:FindNodeItem(node, context.input_id) then
+	if not context or not node then
 		return false
+	end
+
+	local items = self:GetNodeItems(node)
+	local search_item = self:FindNodeItem(node, context.input_id)
+
+	self:SetSearchDefaultItem(node, context)
+
+	if search_item then
+		self:SetSearchItemPriority(search_item)
+		return self:PlaceSearchItemFirst(items, context)
 	end
 
 	if not node.create_item or not node.insert_item then
@@ -226,6 +243,7 @@ function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node, context)
 	end
 
 	node:insert_item(item, 1)
+	self:PlaceSearchItemFirst(self:GetNodeItems(node), context)
 
 	return true
 end
