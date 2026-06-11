@@ -2,7 +2,7 @@
 
 Adds a search/filter field to the top of the BLT mod options list and Mod Overrides list.
 
-Also adds filter fields to the Jukebox heist playlist, heist tracks, and menu playlist screens.
+Also adds search filter fields to the sound menu.
 
 Type in the `Filter` input to narrow the visible mods by mod name or description.
 
