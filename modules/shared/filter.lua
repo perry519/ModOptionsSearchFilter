@@ -57,7 +57,18 @@ function ModOptionsSearchFilter:ItemSearchText(item)
 end
 
 function ModOptionsSearchFilter:NormalizeSearch(value)
-	return string.lower(tostring(value or ""))
+	local text = tostring(value or "")
+	local library = self.GetInlineInputLibrary and self:GetInlineInputLibrary() or _G.InlineInput
+
+	if library and type(library.NormalizeSearchText) == "function" then
+		local ok, normalized = pcall(library.NormalizeSearchText, text)
+
+		if ok and normalized ~= nil then
+			return tostring(normalized)
+		end
+	end
+
+	return string.lower(text)
 end
 
 function ModOptionsSearchFilter:IsAlwaysVisibleItem(item)
@@ -164,6 +175,42 @@ function ModOptionsSearchFilter:ItemMatchesSearch(item, context)
 	end
 
 	return string.find(self:NormalizeSearch(self:ItemSearchText(item)), query, 1, true) ~= nil
+end
+
+function ModOptionsSearchFilter:SafeSetItemIconVisible(item, state)
+	local icon = item and item._icon
+
+	if not icon then
+		return false
+	end
+
+	if type(alive) == "function" then
+		local alive_ok, is_alive = pcall(alive, icon)
+
+		if not alive_ok or not is_alive then
+			return false
+		end
+	end
+
+	local ok = pcall(function()
+		icon:set_visible(state)
+	end)
+
+	return ok == true
+end
+
+function ModOptionsSearchFilter:IsRenderedIconItem(item)
+	local owner = item and item._mod_options_search_render_owner
+
+	return owner ~= nil and item._mod_options_search_render_token == owner._mod_options_search_render_token
+end
+
+function ModOptionsSearchFilter:SafeSetRenderedItemIconVisible(item, state)
+	if not self:IsRenderedIconItem(item) then
+		return false
+	end
+
+	return self:SafeSetItemIconVisible(item, state)
 end
 
 function ModOptionsSearchFilter:PatchItemFilter(item, context)

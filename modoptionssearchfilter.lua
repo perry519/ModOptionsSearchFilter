@@ -14,6 +14,7 @@ local modules = {
 	"modules/shared/context.lua",
 	"modules/blt/context.lua",
 	"modules/mo/context.lua",
+	"modules/jukebox/context.lua",
 	"modules/shared/input.lua",
 	"modules/shared/order.lua",
 	"modules/shared/filter.lua",
@@ -22,6 +23,7 @@ local modules = {
 	"modules/blt/order.lua",
 	"modules/blt/menu.lua",
 	"modules/mo/menu.lua",
+	"modules/jukebox/menu.lua",
 	"modules/shared/core.lua",
 }
 

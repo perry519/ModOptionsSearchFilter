@@ -13,6 +13,10 @@ function ModOptionsSearchFilter:RegisterMenuCallbacks()
 		registered = self:RegisterModOverridesMenuCallbacks() or registered
 	end
 
+	if self.RegisterJukeboxMenuCallbacks then
+		registered = self:RegisterJukeboxMenuCallbacks() or registered
+	end
+
 	return registered
 end
 
@@ -21,6 +25,10 @@ function ModOptionsSearchFilter:RegisterMenuHooks()
 
 	if self.RegisterBltMenuHooks then
 		registered = self:RegisterBltMenuHooks() or registered
+	end
+
+	if self.RegisterJukeboxMenuHooks then
+		registered = self:RegisterJukeboxMenuHooks() or registered
 	end
 
 	return registered
