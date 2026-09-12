@@ -296,6 +296,10 @@ function ModOptionsSearchFilter:EnsureRuntimeSearchItem(node, context)
 end
 
 function ModOptionsSearchFilter:PrepareNode(node_gui, node)
+	local library = self.InlineInputLibrary or _G.InlineInput
+	if library and library.InvalidateNodeRows then
+		library:InvalidateNodeRows(node_gui)
+	end
 	local context = self:NodeSearchContext(node_gui, node)
 
 	if not context then

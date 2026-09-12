@@ -34,7 +34,9 @@ function ModOptionsSearchFilter:UpdateInlineInputRenderer(renderer_self, dt)
 		return false
 	end
 
-	if library.SyncNode then
+	if library.UpdateNode then
+		library:UpdateNode(renderer_self)
+	elseif library.SyncNode then
 		library:SyncNode(renderer_self)
 	end
 
