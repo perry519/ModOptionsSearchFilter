@@ -8,14 +8,14 @@
 	"dependencies": {
 		"perry519.inline_input": {
 			"name": "InlineInput",
-			"meta": "https://raw.githubusercontent.com/perry519/InlineInput/main/update_meta.json"
+			"meta": "https://github.com/perry519/InlineInput/releases/latest/download/update_meta.json"
 		}
 	},
 	"updates": [
 		{
 			"identifier": "perry519.mod_options_search_filter",
 			"host": {
-				"meta": "https://raw.githubusercontent.com/perry519/ModOptionsSearchFilter/main/update_meta.json"
+				"meta": "https://github.com/perry519/ModOptionsSearchFilter/releases/latest/download/update_meta.json"
 			}
 		}
 	],
