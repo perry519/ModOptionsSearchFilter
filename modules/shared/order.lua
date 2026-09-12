@@ -93,12 +93,26 @@ function ModOptionsSearchFilter:PlaceSearchItemFirst(items, context)
 		return false
 	end
 
-	if search_index == 1 then
+	local target_index = 1
+	if context.insert_after then
+		local index_without_search = 0
+		for _, item in ipairs(items) do
+			if item ~= search_item then
+				index_without_search = index_without_search + 1
+				if self:ItemName(item) == context.insert_after then
+					target_index = index_without_search + 1
+					break
+				end
+			end
+		end
+	end
+
+	if search_index == target_index then
 		return false
 	end
 
 	table.remove(items, search_index)
-	table.insert(items, 1, search_item)
+	table.insert(items, target_index, search_item)
 
 	return true
 end

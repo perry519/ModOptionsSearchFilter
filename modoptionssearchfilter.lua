@@ -15,6 +15,8 @@ local modules = {
 	"modules/blt/context.lua",
 	"modules/mo/context.lua",
 	"modules/jukebox/context.lua",
+	"modules/keybindings.lua",
+	"modules/player_mods.lua",
 	"modules/shared/input.lua",
 	"modules/shared/order.lua",
 	"modules/shared/filter.lua",

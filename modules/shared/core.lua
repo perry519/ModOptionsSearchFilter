@@ -17,6 +17,9 @@ function ModOptionsSearchFilter:RegisterMenuCallbacks()
 		registered = self:RegisterJukeboxMenuCallbacks() or registered
 	end
 
+	registered = self:RegisterKeybindingsMenuCallbacks() or registered
+	registered = self:RegisterPlayerModsMenuCallbacks() or registered
+
 	return registered
 end
 

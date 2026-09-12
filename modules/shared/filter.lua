@@ -174,6 +174,10 @@ function ModOptionsSearchFilter:ItemMatchesSearch(item, context)
 		return true
 	end
 
+	if context.item_matches then
+		return context.item_matches(self, item, query)
+	end
+
 	return string.find(self:NormalizeSearch(self:ItemSearchText(item)), query, 1, true) ~= nil
 end
 
@@ -311,6 +315,10 @@ function ModOptionsSearchFilter:PrepareNode(node_gui, node)
 	self:EnsureRuntimeSearchItem(target_node, context)
 
 	if has_search_input then
+		if context.prepare then
+			context.prepare(self, target_node)
+		end
+
 		for _, item in pairs(self:GetNodeItems(target_node)) do
 			if not self:IsAlwaysVisibleItem(item) then
 				self:PatchItemFilter(item, context)
